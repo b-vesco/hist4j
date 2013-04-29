@@ -1,16 +1,16 @@
 /*
-Copyright 2007 Flaptor (flaptor.com) 
+Copyright 2007 Flaptor (flaptor.com)
 
-Licensed under the Apache License, Version 2.0 (the "License"); 
-you may not use this file except in compliance with the License. 
-You may obtain a copy of the License at 
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0 
+    http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software 
-distributed under the License is distributed on an "AS IS" BASIS, 
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-See the License for the specific language governing permissions and 
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 */
 
@@ -29,10 +29,10 @@ import java.util.ArrayList;
 
 public class HistogramDataNode extends HistogramNode {
 
-	private static final long serialVersionUID = -1L;
+    private static final long serialVersionUID = -1L;
 
    // Attributes of a data node.
-	private Cell cell = new Cell();
+    private Cell cell = new Cell();
 
     /**
      * Creates an empty data node.
@@ -57,6 +57,7 @@ public class HistogramDataNode extends HistogramNode {
     /**
      * Clears the data node.
      */
+    @Override
     public void reset () {
         cell.count = 0;
         cell.minValue = Float.MAX_VALUE;
@@ -73,15 +74,16 @@ public class HistogramDataNode extends HistogramNode {
      * @param value the value for which the count is to be incremented.
      * @return A reference to itself if no structural change happened, or a reference to the new fork node if this node was split.
      */
+    @Override
     public HistogramNode addValue (AdaptiveHistogram root, float value) {
-        // "self" is what is returned to the caller. If this node needs to be replaced by a fork node, 
+        // "self" is what is returned to the caller. If this node needs to be replaced by a fork node,
         // this variable will hold the new fork node and it will be returned to the caller.
         // Otherwise, the node returned will be this, in which case nothing changes.
         HistogramNode self = this;
         if (value >= cell.minValue && value <= cell.maxValue) {  // the value falls within this nodes' range
             if (cell.count < root.getCountPerNodeLimit()  // there is enough room in this node for the new value
                     || cell.minValue == cell.maxValue) {  // or the node defines a zero-width range so it can't be split
-            	cell.count++;
+                cell.count++;
             } else {  // not enough room, distribute the value count among the new nodes, assuming uniform distribution
                 float splitValue = (cell.minValue + cell.maxValue) / 2;
                 long rightCount = cell.count / 2;
@@ -102,17 +104,17 @@ public class HistogramDataNode extends HistogramNode {
             }
         } else {  // the value falls outside of this nodes' range
             if (cell.count < root.getCountPerNodeLimit()) {  // there is enough room in this node for the new value
-            	cell.count++;
-                // extend the range of this node, assuming that the tree structure above correctly directed 
+                cell.count++;
+                // extend the range of this node, assuming that the tree structure above correctly directed
                 // the given value to this node and therefore it lies at one of the borders of the tree.
                 if (value < cell.minValue) cell.minValue = value;
                 if (value > cell.maxValue) cell.maxValue = value;
             } else {  // not enough room, create a new sibling node for the new value and put both under a new fork node
                 if (value < cell.minValue) {
-                	cell.minValue = Math.min(cell.minValue, (value + cell.maxValue) / 2);
+                    cell.minValue = Math.min(cell.minValue, (value + cell.maxValue) / 2);
                     self = new HistogramForkNode(cell.minValue, new HistogramDataNode(1,value,cell.minValue), this);
                 } else {
-                	cell.maxValue = Math.max(cell.maxValue, (cell.minValue + value) / 2);
+                    cell.maxValue = Math.max(cell.maxValue, (cell.minValue + value) / 2);
                     self = new HistogramForkNode(cell.maxValue, this, new HistogramDataNode(1,cell.maxValue,value));
                 }
             }
@@ -125,6 +127,7 @@ public class HistogramDataNode extends HistogramNode {
      * @param value the reference data point.
      * @return the number of data points stored in the same bucket as the reference point.
      */
+    @Override
     public long getCount (float value) {
         long res = 0;
         if (value >= cell.minValue && value <= cell.maxValue) {
@@ -138,6 +141,7 @@ public class HistogramDataNode extends HistogramNode {
      * @param value the reference data point.
      * @return the cumulative density function for the reference point.
      */
+    @Override
     public long getAccumCount (float value) {
         long res = 0;
         if (value >= cell.minValue) {
@@ -160,25 +164,27 @@ public class HistogramDataNode extends HistogramNode {
      *      - accumCount[1] the target cumulative count.
      * @return the data point where the running cumulative count reaches the target cumulative count.
      */
+    @Override
     public Float getValueForAccumCount (long[] accumCount) {
         Float res = null;
         long runningAccumCount = accumCount[0];
         long targetAccumCount = accumCount[1];
         if (runningAccumCount <= targetAccumCount && runningAccumCount + cell.count >= targetAccumCount) {
-            float val = interpolate((float)runningAccumCount, cell.minValue, (float)(runningAccumCount + cell.count), cell.maxValue, (float)targetAccumCount); 
+            float val = interpolate((float)runningAccumCount, cell.minValue, (float)(runningAccumCount + cell.count), cell.maxValue, (float)targetAccumCount);
             res = new Float(val);
         }
         accumCount[0] += cell.count;
         return res;
     }
 
-    /** 
+    /**
      * Applies a convertion function to the values stored in the histogram.
      * @param valueConversion a class that defines a function to convert the value.
      */
+    @Override
     public void apply (AdaptiveHistogram.ValueConversion valueConversion) {
-    	cell.minValue = valueConversion.convertValue(cell.minValue);
-    	cell.maxValue = valueConversion.convertValue(cell.maxValue);
+        cell.minValue = valueConversion.convertValue(cell.minValue);
+        cell.maxValue = valueConversion.convertValue(cell.maxValue);
     }
 
 
@@ -186,16 +192,18 @@ public class HistogramDataNode extends HistogramNode {
      * Prints this nodes' data with a margin depending on the level of the node in the tree.
      * @param level the level of this node in the tree.
      */
+    @Override
     public void show (int level) {
         margin(level);
         System.out.println("Data: " + cell.count + " ("+cell.minValue+","+cell.maxValue+")");
     }
-    
+
     /**
      * Build the table representing the histogram data adding this node's cell to it.
      */
+    @Override
     public void toTable (ArrayList<Cell> table) {
-    	table.add(cell);
+        table.add(cell);
     }
 
 }
